@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lady Dior Bag Animation</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden;
+            background-color: #e0e0e0; /* Light grey background */
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+        #container { 
+            width: 100%; 
+            height: 100vh;
+        }
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #2596be; /* RGB(37,150,190) */
+            font-size: 16px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            gap: 15px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            padding: 10px 18px;
+            background-color: #2596be; /* RGB(37,150,190) */
+            border: none;
+            color: white;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        button:hover {
+            background-color: #1d7ea2; /* Darker blue on hover */
+            transform: translateY(-1px);
+        }
+        button:active {
+            transform: translateY(1px);
+        }
+        .info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: #333;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 300px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .info h3 {
+            margin-top: 0;
+            color: #2596be; /* RGB(37,150,190) */
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            width: 0%;
+            background-color: #2596be; /* RGB(37,150,190) */
+            transition: width 0.2s;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div class="loading">Loading Lady Dior bag animation...</div>
+    <div class="progress-bar" id="progressBar"></div>
+    
+    <div class="controls">
+        <button id="playBtn">Play Animation</button>
+        <button id="resetBtn">Reset</button>
+        <button id="toggleTransparency">Toggle Transparency</button>
+    </div>
+    
+    <div class="info">
+        <h3>Lady Dior Bag</h3>
+        <p>This interactive 3D animation demonstrates how the Lady Dior bag elegantly accommodates various accessories.</p>
+        <p>Use mouse to rotate, scroll to zoom, and the controls below to play the animation.</p>
+    </div>
+
+    <!-- Import Three.js and related libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/loaders/DRACOLoader.js"></script>
+
+    <script>
+        // Main Three.js scene setup
+        let scene, camera, renderer, controls;
+        let mixer, animations = [];
+        let clock = new THREE.Clock();
+        let bag, airpods, cardHolder, phoneCase, pouch;
+        let isPlaying = false;
+        let isBagTransparent = false;
+        
+        // Animation timing
+        const DURATION = 2.5; // seconds for each item to drop
+        const GAP = 0.5; // seconds between items
+        const ACCENT_COLOR = new THREE.Color(0x2596be); // RGB(37,150,190)
+        
+        // Initialize the scene
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xe0e0e0); // Light grey background
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 1, 3);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                alpha: true 
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.physicallyCorrectLights = true;
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // Add controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxDistance = 10;
+            controls.minDistance = 1;
+            
+            // Add lights - updated for better appearance with light bg
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(1, 2, 3);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // Add another light from opposite direction for better illumination
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            fillLight.position.set(-1, 1, -2);
+            scene.add(fillLight);
+
+            // Add a subtle accent color point light
+            const accentLight = new THREE.PointLight(ACCENT_COLOR, 0.5, 10);
+            accentLight.position.set(0, 2, 2);
+            scene.add(accentLight);
+            
+            // Load models
+            loadModels();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Set up animation controls
+            document.getElementById('playBtn').addEventListener('click', playAnimation);
+            document.getElementById('resetBtn').addEventListener('click', resetAnimation);
+            document.getElementById('toggleTransparency').addEventListener('click', toggleBagTransparency);
+            
+            // Start rendering loop
+            animate();
+        }
+        
+        // Load all 3D models
+        function loadModels() {
+            const loadingManager = new THREE.LoadingManager(
+                // On complete
+                () => {
+                    document.querySelector('.loading').style.display = 'none';
+                    document.getElementById('progressBar').style.width = '100%';
+                    setTimeout(() => {
+                        document.getElementById('progressBar').style.opacity = '0';
+                    }, 500);
+                },
+                // On progress
+                (url, itemsLoaded, itemsTotal) => {
+                    const progressPercent = (itemsLoaded / itemsTotal * 100);
+                    document.getElementById('progressBar').style.width = `${progressPercent}%`;
+                }
+            );
+            
+            const gltfLoader = new THREE.GLTFLoader(loadingManager);
+            // Optional: Set up DRACO loader for compressed models
+            const dracoLoader = new THREE.DRACOLoader();
+            dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+            gltfLoader.setDRACOLoader(dracoLoader);
+            
+            // Paths to your models - replace these with your actual model URLs
+            const bagUrl = 'https://your-domain.com/models/toujours.glb';
+            const airpodsUrl = 'https://your-domain.com/models/airpods_max.glb';
+            const cardHolderUrl = 'https://your-domain.com/models/pink_lady_dior_wallet.glb';
+            const phoneCaseUrl = 'https://your-domain.com/models/caro_portfeuille.glb';
+            const pouchUrl = 'https://your-domain.com/models/pink_caro_card_holder.glb';
+            
+            // Load bag
+            gltfLoader.load(bagUrl, (gltf) => {
+                bag = gltf.scene;
+                bag.scale.set(1.5, 1.5, 1.5);
+                scene.add(bag);
+                
+                // Save animations
+                mixer = new THREE.AnimationMixer(bag);
+                if (gltf.animations.length) {
+                    const handleAnimation = mixer.clipAction(gltf.animations[0]);
+                    handleAnimation.setLoop(THREE.LoopOnce);
+                    handleAnimation.clampWhenFinished = true;
+                    animations.push(handleAnimation);
+                }
+                
+                // Set up bag materials for transparency and shadows
+                bag.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        child.material.transparent = true;
+                        child.material.opacity = 1.0;
+                        child.receiveShadow = true;
+                        child.castShadow = true;
+                    }
+                });
+            });
+            
+            // Load AirPods
+            gltfLoader.load(airpodsUrl, (gltf) => {
+                airpods = gltf.scene;
+                airpods.scale.set(0.18, 0.18, 0.18); // 6.0/100 * 3
+                airpods.rotation.set(Math.PI * 1.5, 0, Math.PI * 0.5); // 270° X, 90° Z
+                airpods.position.set(-0.8, 2, 1.8); // Starting position
+                
+                // Set up shadows
+                airpods.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                scene.add(airpods);
+            });
+            
+            // Load Card Holder
+            gltfLoader.load(cardHolderUrl, (gltf) => {
+                cardHolder = gltf.scene;
+                cardHolder.scale.set(0.416, 0.416, 0.416); // 250/600
+                cardHolder.position.set(-0.05, 2, 1.0); // Starting position
+                
+                cardHolder.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                scene.add(cardHolder);
+            });
+            
+            // Load Phone Case
+            gltfLoader.load(phoneCaseUrl, (gltf) => {
+                phoneCase = gltf.scene;
+                phoneCase.scale.set(9.166, 9.166, 9.166); // 55/6
+                phoneCase.rotation.set(0, 0, Math.PI); // 180° Z rotation
+                phoneCase.position.set(-0.8, 2, 0.8); // Starting position
+                
+                phoneCase.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                scene.add(phoneCase);
+            });
+            
+            // Load Pouch
+            gltfLoader.load(pouchUrl, (gltf) => {
+                pouch = gltf.scene;
+                pouch.scale.set(0.0086, 0.0086, 0.0086); // 13/1500
+                pouch.position.set(0.8, 2, 1.5); // Starting position
+                
+                pouch.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                
+                scene.add(pouch);
+            });
+        }
+        
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const delta = clock.getDelta();
+            
+            if (mixer) mixer.update(delta);
+            
+            if (isPlaying) {
+                updateItemPositions(delta);
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // Item animation variables
+        let animationTime = 0;
+        let animationPhase = 0; // 0: not started, 1: pouch, 2: cardHolder, 3: phoneCase, 4: airpods, 5: transparency
+        let currentItemStartTime = 0;
+        
+        function updateItemPositions(delta) {
+            animationTime += delta;
+            
+            // Determine which phase we're in
+            if (animationPhase === 0) {
+                animationPhase = 1;
+                currentItemStartTime = animationTime;
+            }
+            
+            // Animation phases
+            const itemEndPositions = {
+                pouch: new THREE.Vector3(0.15, 0.1, -0.1),
+                cardHolder: new THREE.Vector3(-0.05, 0.15, -0.1),
+                phoneCase: new THREE.Vector3(0.15, -0.1, -0.15),
+                airpods: new THREE.Vector3(-0.25, -0.1, -0.15)
+            };
+            
+            // Handle each phase
+            if (animationPhase === 1 && pouch) {
+                animateItem(pouch, itemEndPositions.pouch, currentItemStartTime);
+                if (animationTime > currentItemStartTime + DURATION) {
+                    animationPhase = 2;
+                    currentItemStartTime = animationTime + GAP;
+                }
+            }
+            
+            if (animationPhase === 2 && cardHolder && animationTime >= currentItemStartTime) {
+                animateItem(cardHolder, itemEndPositions.cardHolder, currentItemStartTime);
+                if (animationTime > currentItemStartTime + DURATION) {
+                    animationPhase = 3;
+                    currentItemStartTime = animationTime + GAP;
+                }
+            }
+            
+            if (animationPhase === 3 && phoneCase && animationTime >= currentItemStartTime) {
+                animateItem(phoneCase, itemEndPositions.phoneCase, currentItemStartTime);
+                if (animationTime > currentItemStartTime + DURATION) {
+                    animationPhase = 4;
+                    currentItemStartTime = animationTime + GAP;
+                }
+            }
+            
+            if (animationPhase === 4 && airpods && animationTime >= currentItemStartTime) {
+                animateItem(airpods, itemEndPositions.airpods, currentItemStartTime);
+                if (animationTime > currentItemStartTime + DURATION) {
+                    animationPhase = 5;
+                    currentItemStartTime = animationTime + GAP;
+                }
+            }
+            
+            // Final phase - make bag transparent
+            if (animationPhase === 5 && bag && animationTime >= currentItemStartTime) {
+                const transparencyProgress = Math.min(1, (animationTime - currentItemStartTime) / DURATION);
+                const opacity = 1.0 - (0.8 * transparencyProgress); // 80% transparency
+                
+                bag.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        child.material.opacity = opacity;
+                    }
+                });
+                
+                if (animationTime > currentItemStartTime + DURATION) {
+                    isPlaying = false;
+                    isBagTransparent = true;
+                    
+                    // Highlight Play button to indicate animation completed
+                    document.getElementById('playBtn').style.backgroundColor = '#888';
+                }
+            }
+        }
+        
+        function animateItem(item, endPos, startTime) {
+            const progress = Math.min(1, (animationTime - startTime) / DURATION);
+            
+            // Calculate current position based on parabolic arc
+            const startPos = new THREE.Vector3().copy(item.userData.startPosition || item.position);
+            
+            // Store the start position if we haven't already
+            if (!item.userData.startPosition) {
+                item.userData.startPosition = startPos.clone();
+            }
+            
+            // Use a more natural arc with higher midpoint
+            const midPos = new THREE.Vector3().lerpVectors(startPos, endPos, 0.5).add(new THREE.Vector3(0, 0.8, 0));
+            
+            if (progress <= 0.5) {
+                // First half of animation - start to middle
+                const subProgress = progress * 2; // rescale 0-0.5 to 0-1
+                item.position.lerpVectors(startPos, midPos, easeOutQuad(subProgress));
+            } else {
+                // Second half of animation - middle to end
+                const subProgress = (progress - 0.5) * 2; // rescale 0.5-1 to 0-1
+                item.position.lerpVectors(midPos, endPos, easeInQuad(subProgress));
+            }
+        }
+        
+        // Easing functions for smoother animation
+        function easeOutQuad(t) {
+            return t * (2 - t);
+        }
+        
+        function easeInQuad(t) {
+            return t * t;
+        }
+        
+        function playAnimation() {
+            if (!isPlaying) {
+                isPlaying = true;
+                animationTime = 0;
+                animationPhase = 0;
+                
+                document.getElementById('playBtn').style.backgroundColor = '#2596be';
+                
+                // Reset positions if needed
+                resetPositions();
+                
+                // Play handle animation if available
+                if (animations.length > 0) {
+                    animations[0].reset().play();
+                }
+            }
+        }
+        
+        function resetAnimation() {
+            isPlaying = false;
+            animationPhase = 0;
+            
+            // Reset positions
+            resetPositions();
+            
+            // Reset bag transparency
+            if (bag) {
+                bag.traverse((child) => {
+                    if (child.isMesh && child.material) {
+                        child.material.opacity = 1.0;
+                    }
+                });
+            }
+            isBagTransparent = false;
+            
+            // Reset button color
+            document.getElementById('playBtn').style.backgroundColor = '#2596be';
+            
+            // Reset handle animation if available
+            if (animations.length > 0) {
+                animations[0].reset();
+            }
+        }
+        
+        function resetPositions() {
+            if (pouch) {
+                pouch.position.set(0.8, 2, 1.5);
+            }
+            if (cardHolder) {
+                cardHolder.position.set(-0.05, 2, 1.0);
+            } 
+            if (phoneCase) {
+                phoneCase.position.set(-0.8, 2, 0.8);
+            }
+            if (airpods) {
+                airpods.position.set(-0.8, 2, 1.8);
+            }
+        }
+        
+        function toggleBagTransparency() {
+            if (!bag) return;
+            
+            isBagTransparent = !isBagTransparent;
+            const opacity = isBagTransparent ? 0.2 : 1.0;
+            
+            bag.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    child.material.opacity = opacity;
+                }
+            });
+        }
+        
+        // Initialize the scene when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
