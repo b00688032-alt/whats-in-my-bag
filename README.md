@@ -10,7 +10,7 @@ Transparency effect to view inside the bag
 Interactive controls for camera manipulation
 Responsive design for desktop and mobile devices
 Live Demo
-View the live animation at: https://github.com/b00688032-alt/whats-in-my-bag
+View the live animation at: https://b00688032-alt.github.io/whats-in-my-bag/
 
 Models Included
 Lady Dior quilted bag (black leather)
